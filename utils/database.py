@@ -50,21 +50,8 @@ def get_connection():
 
 
 def crear_base_de_datos():
-    """Crea la base de datos si no existe."""
-    conn = pymysql.connect(
-        host=DB_CONFIG["host"],
-        port=DB_CONFIG["port"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        charset=DB_CONFIG["charset"],
-    )
-    with conn.cursor() as cursor:
-        cursor.execute(
-            f"CREATE DATABASE IF NOT EXISTS `{DB_CONFIG['database']}` "
-            f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-        )
-    conn.commit()
-    conn.close()
+    """En Railway la BD ya existe, no necesita crearse."""
+    pass
 
 
 def init_database():
