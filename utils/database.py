@@ -11,12 +11,12 @@ import os
 
 # ── Datos de conexión MySQL (Laragon) ────────────────────────────────────
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 3306,
-    "user": "root",
-    "password": "",  # Laragon por defecto no tiene contraseña
-    "database": "foodsmart_la22",
-    "charset": "utf8mb4",
+    "host":     os.getenv("MYSQLHOST", "localhost"),
+    "port":     int(os.getenv("MYSQLPORT", 3306)),
+    "user":     os.getenv("MYSQLUSER", "root"),
+    "password": os.getenv("MYSQLPASSWORD", ""),
+    "database": os.getenv("MYSQLDATABASE", "foodsmart_la22"),
+    "charset":  "utf8mb4",
 }
 
 # SQLAlchemy engine (para pd.read_sql)
