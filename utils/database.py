@@ -11,11 +11,11 @@ import os
 
 # ── Datos de conexión MySQL (Laragon) ────────────────────────────────────
 DB_CONFIG = {
-    "host":     os.getenv("MYSQLHOST", "localhost"),
-    "port":     int(os.getenv("MYSQLPORT", 3306)),
-    "user":     os.getenv("MYSQLUSER", "root"),
-    "password": os.getenv("MYSQLPASSWORD", ""),
-    "database": os.getenv("MYSQLDATABASE", "foodsmart_la22"),
+    "host":     os.getenv("FS_HOST", "localhost"),
+    "port":     int(os.getenv("FS_PORT", 3306)),
+    "user":     os.getenv("FS_USER", "root"),
+    "password": os.getenv("FS_PASSWORD", ""),
+    "database": os.getenv("FS_DATABASE", "foodsmart_la22"),
     "charset":  "utf8mb4",
 }
 
