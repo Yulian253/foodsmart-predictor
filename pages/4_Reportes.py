@@ -505,6 +505,9 @@ with tab1:
             if len(pred_df_t1) > 0:
                 ventas_agg_t1 = ventas_df_t1.groupby(["fecha_venta", "nombre_plato"])["cantidad_vendida"].sum().reset_index()
                 ventas_agg_t1.rename(columns={"fecha_venta": "fecha_prediccion", "cantidad_vendida": "venta_real"}, inplace=True)
+                # Convertir ambas columnas al mismo tipo (str) antes del merge
+                pred_df_t1["fecha_prediccion"] = pd.to_datetime(pred_df_t1["fecha_prediccion"]).dt.date.astype(str)
+                ventas_agg_t1["fecha_prediccion"] = pd.to_datetime(ventas_agg_t1["fecha_prediccion"]).dt.date.astype(str)
                 merged = pred_df_t1.merge(ventas_agg_t1, on=["fecha_prediccion", "nombre_plato"], how="inner")
                 if len(merged) > 0:
                     merged["error_abs"] = abs(merged["cantidad_predicha"] - merged["venta_real"])
