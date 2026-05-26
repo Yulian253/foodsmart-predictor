@@ -18,7 +18,6 @@ from utils.ml_model import (
     MENU_LA22
 )
 
-
 from utils.auth import verificar_sesion, sidebar_usuario, get_usuario_actual, ROLES
 
 st.set_page_config(page_title="Registro de Ventas — La 22", page_icon="📝", menu_items={}, layout="wide")
@@ -27,8 +26,6 @@ from utils.theme import DARK_THEME_CSS, apply_plotly_dark, CHART_COLORS
 st.markdown(DARK_THEME_CSS, unsafe_allow_html=True)
 
 verificar_sesion(permisos_requeridos=["registro_ventas"])
-
-# (CSS handled by theme.py)
 
 st.markdown("""
 <div class="page-header">
@@ -72,7 +69,6 @@ st.divider()
 ventas_existentes = obtener_ventas_historicas(fecha_inicio=fecha_registro, fecha_fin=fecha_registro)
 ventas_exist_dict = {}
 if len(ventas_existentes) > 0:
-    # Filtrar solo registros tipo 'total' (registrados por el usuario)
     vt = ventas_existentes[ventas_existentes["tipo_venta"] == "total"]
     if len(vt) > 0:
         ventas_exist_dict = dict(zip(vt["nombre_plato"], vt["cantidad_vendida"]))
@@ -101,11 +97,10 @@ for categoria, platos in platos_disponibles.items():
     emoji = emoji_categorias.get(categoria, "🍽️")
     st.markdown(f'<div class="cat-header">{emoji} {categoria} ({len(platos)} platos)</div>', unsafe_allow_html=True)
 
-    # Siempre 3 columnas por fila, crear nuevas filas cada 3 platos
     COLS_PER_ROW = 3
     for row_start in range(0, len(platos), COLS_PER_ROW):
         row_platos = platos[row_start:row_start + COLS_PER_ROW]
-        cols = st.columns(COLS_PER_ROW)  # Siempre 3 columnas (las vacías quedan en blanco limpio)
+        cols = st.columns(COLS_PER_ROW)
 
         for col_idx, plato in enumerate(row_platos):
             with cols[col_idx]:
@@ -214,9 +209,8 @@ if guardar:
     if total_preview > 0:
         registrar_ventas_dia(fecha_registro, ventas_input, tipo_dia, dia_semana)
         st.success(f"✅ **Ventas registradas exitosamente** para {dia_semana} {fecha_registro.strftime('%d/%m/%Y')}")
-        st.balloons()
+        st.toast(f"✅ Ventas del {fecha_registro.strftime('%d/%m/%Y')} guardadas correctamente", icon="✅")
 
-        # Alerta si hay mucha diferencia con predicción
         if pred_dict:
             total_pred = sum(pred_dict.values())
             diff_total = abs(total_preview - total_pred)

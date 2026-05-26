@@ -17,7 +17,6 @@ from utils.database import (
 )
 from utils.ml_model import entrenar_modelo, modelo_existe, cargar_modelo
 
-
 from utils.auth import verificar_sesion, sidebar_usuario, get_usuario_actual, ROLES
 
 st.set_page_config(page_title="Modelo ML — La 22", page_icon="🤖", menu_items={}, layout="wide")
@@ -26,8 +25,6 @@ from utils.theme import DARK_THEME_CSS, apply_plotly_dark, CHART_COLORS
 st.markdown(DARK_THEME_CSS, unsafe_allow_html=True)
 
 verificar_sesion(permisos_requeridos=["modelo_ml"])
-
-# (CSS handled by theme.py)
 
 st.markdown("""
 <div class="page-header">
@@ -43,8 +40,8 @@ if modelo_info:
     st.markdown("### 📊 Modelo Activo")
 
     mape = modelo_info["mape"]
-    r2 = modelo_info["r2"]
-    mae = modelo_info["mae"]
+    r2   = modelo_info["r2"]
+    mae  = modelo_info["mae"]
     rmse = modelo_info["rmse"]
 
     col1, col2, col3, col4 = st.columns(4)
@@ -92,7 +89,6 @@ if modelo_info:
         f"Entrenado: {modelo_info['entrenado_en']} | "
         f"Registros: {modelo_info['n_registros']:,}"
     )
-
     st.divider()
 
 elif modelo_existe():
@@ -118,7 +114,7 @@ with col_info3:
     rango = f"{df_ventas['fecha_venta'].min()} a {df_ventas['fecha_venta'].max()}"
     st.metric("Rango de fechas", rango)
 
-# ── Evidencia de autoalimentación ────────────────────────────────────
+# ── Evidencia de autoalimentación ────────────────────────────────────────
 modelo_previo = obtener_modelo_activo()
 if modelo_previo:
     registros_modelo = modelo_previo.get("n_registros", 0)
@@ -168,7 +164,7 @@ if len(df_ventas) < 100:
 entrenar = st.button("🧠 Entrenar Modelo Ahora", type="primary", use_container_width=True)
 
 if entrenar:
-    progress = st.progress(0, text="Preparando datos...")
+    progress    = st.progress(0, text="Preparando datos...")
     status_text = st.empty()
 
     try:
@@ -184,7 +180,6 @@ if entrenar:
         progress.progress(80, text="Guardando modelo...")
         status_text.text("💾 Guardando modelo y encoders...")
 
-        # Guardar info en BD
         version = f"RF_v{datetime.now().strftime('%Y%m%d_%H%M')}"
         guardar_modelo_info(
             version=version,
@@ -205,21 +200,21 @@ if entrenar:
         progress.progress(100, text="¡Modelo entrenado!")
         status_text.empty()
 
-        st.success(f"✅ **Modelo entrenado exitosamente!**")
+        st.success("✅ **Modelo entrenado exitosamente.**")
+        st.toast("✅ Modelo actualizado correctamente", icon="🤖")
+
         st.markdown(f"""
         <div class="section-card" style="border-left: 4px solid #3fb950;">
             <h4>📋 Resumen del Entrenamiento</h4>
             <p>
-                <strong>Fuente de datos:</strong> MySQL (foodsmart_la22.ventas_historicas) vía pd.read_sql()<br>
+                <strong>Fuente de datos:</strong> MySQL (ventas_historicas) vía pd.read_sql()<br>
                 <strong>Registros utilizados:</strong> {metricas['n_registros']:,}<br>
                 <strong>Versión:</strong> {version}<br>
                 <strong>Modelo guardado:</strong> data/modelo_rf.pkl
             </p>
         </div>
         """, unsafe_allow_html=True)
-        st.balloons()
 
-        # Mostrar resultados
         col_r1, col_r2, col_r3, col_r4 = st.columns(4)
         with col_r1:
             st.metric("MAPE", f"{metricas['mape']:.1f}%",
@@ -231,25 +226,19 @@ if entrenar:
         with col_r4:
             st.metric("RMSE", f"{metricas['rmse']:.2f}")
 
-        # Importancia de features
         st.markdown("### 📊 Importancia de Variables")
-        fi = metricas["feature_importance"]
+        fi    = metricas["feature_importance"]
         fi_df = pd.DataFrame(
             {"Variable": list(fi.keys()), "Importancia": list(fi.values())}
         ).sort_values("Importancia", ascending=True)
 
         fig_fi = px.bar(
-            fi_df,
-            x="Importancia",
-            y="Variable",
-            orientation="h",
-            color_discrete_sequence=["#2a9d8f"],
+            fi_df, x="Importancia", y="Variable",
+            orientation="h", color_discrete_sequence=["#2a9d8f"],
         )
         fig_fi.update_layout(
-            plot_bgcolor="#161b22",
-            paper_bgcolor="#161b22",
-            height=400,
-            margin=dict(l=20, r=20, t=10, b=20),
+            plot_bgcolor="#161b22", paper_bgcolor="#161b22",
+            height=400, margin=dict(l=20, r=20, t=10, b=20),
             yaxis=dict(autorange="reversed"),
         )
         fig_fi = apply_plotly_dark(fig_fi)
@@ -265,10 +254,10 @@ if entrenar:
 st.divider()
 st.markdown("### ℹ️ Sobre el Modelo")
 st.markdown("""
-**Random Forest Regressor** es un algoritmo de ensamble que construye múltiples árboles de decisión 
+**Random Forest Regressor** es un algoritmo de ensamble que construye múltiples árboles de decisión
 y promedia sus predicciones. Es robusto frente a outliers y maneja bien variables categóricas.
 
-**Variables más importantes del modelo (según documentación del proyecto):**
+**Variables más importantes del modelo:**
 - **tipo_dia** (correlación 0.847): La demanda varía en proporción 1:1.5:3 (semana:sábado:domingo)
 - **lag_7** y **prom_mov_7**: Las ventas de la misma semana anterior son fuertes predictores
 - **plato_cod**: Cada plato tiene su propio patrón de demanda
