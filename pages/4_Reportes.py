@@ -35,6 +35,7 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     """
     Genera un PDF profesional con el reporte de ventas.
     Lenguaje amigable para personas no técnicas.
+    Usa DejaVuSans para soporte de simbolos Unicode (checkmarks, bullets, etc.)
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
@@ -45,6 +46,54 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         HRFlowable, KeepTogether,
     )
     from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # ── Registrar fuente DejaVu con soporte Unicode ───────────────────────
+    # Busca primero en la carpeta local del proyecto, luego en el sistema
+    import os
+    _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _font_paths = [
+        os.path.join(_base, "data", "fonts", "DejaVuSans.ttf"),
+        os.path.join(_base, "fonts", "DejaVuSans.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/DejaVuSans.ttf",
+    ]
+    _bold_paths = [
+        os.path.join(_base, "data", "fonts", "DejaVuSans-Bold.ttf"),
+        os.path.join(_base, "fonts", "DejaVuSans-Bold.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/DejaVuSans-Bold.ttf",
+    ]
+
+    _font_reg  = next((p for p in _font_paths  if os.path.exists(p)), None)
+    _bold_reg  = next((p for p in _bold_paths  if os.path.exists(p)), None)
+
+    _USE_DEJAVU = False
+    if _font_reg and _bold_reg:
+        try:
+            if "DejaVu" not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont("DejaVu",     _font_reg))
+                pdfmetrics.registerFont(TTFont("DejaVuBold", _bold_reg))
+            _USE_DEJAVU = True
+        except Exception:
+            pass
+
+    # Fuentes base: DejaVu si disponible, Helvetica como fallback
+    F_NORMAL = "DejaVu"     if _USE_DEJAVU else "Helvetica"
+    F_BOLD   = "DejaVuBold" if _USE_DEJAVU else "Helvetica-Bold"
+    F_ITALIC = "DejaVu"     if _USE_DEJAVU else "Helvetica-Oblique"
+
+    # Simbolos Unicode (funcionan con DejaVu)
+    SYM_CHECK = "\u2714"   # ✔  Heavy checkmark
+    SYM_BULL  = "\u25B6"   # ▶  Triangulo/bullet
+    CAT_ICONS = {
+        "Sopas":      "\u2605 ",  # ★
+        "Carnes":     "\u25CF ",  # ●
+        "Pescados":   "\u25C6 ",  # ◆
+        "Arroces":    "\u25A0 ",  # ■ (cuadrado pequeño, diferente contexto)
+        "Corrientes": "\u25B2 ",  # ▲
+    }
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -54,84 +103,69 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     )
 
     # ── Colores ──────────────────────────────────────────────────────────
-    VERDE_OSCURO  = colors.HexColor("#1A5632")
-    VERDE_CLARO   = colors.HexColor("#2A9D8F")
-    FONDO_GRIS    = colors.HexColor("#F4F6F5")
-    GRIS_LINEA    = colors.HexColor("#DEE2E6")
-    NARANJA       = colors.HexColor("#E76F51")
-    TEXTO_OSCURO  = colors.HexColor("#2D3436")
-    BLANCO        = colors.white
+    VERDE_OSCURO = colors.HexColor("#1A5632")
+    VERDE_CLARO  = colors.HexColor("#2A9D8F")
+    FONDO_GRIS   = colors.HexColor("#F4F6F5")
+    GRIS_LINEA   = colors.HexColor("#DEE2E6")
+    TEXTO_OSCURO = colors.HexColor("#2D3436")
+    BLANCO       = colors.white
 
     # ── Estilos ──────────────────────────────────────────────────────────
     estilos = getSampleStyleSheet()
 
     titulo_principal = ParagraphStyle(
         "titulo_principal", parent=estilos["Normal"],
-        fontSize=22, textColor=BLANCO, fontName="Helvetica-Bold",
+        fontSize=22, textColor=BLANCO, fontName=F_BOLD,
         alignment=TA_CENTER, spaceAfter=4,
     )
     subtitulo = ParagraphStyle(
         "subtitulo", parent=estilos["Normal"],
-        fontSize=11, textColor=BLANCO, fontName="Helvetica",
+        fontSize=11, textColor=BLANCO, fontName=F_NORMAL,
         alignment=TA_CENTER, spaceAfter=2,
     )
     seccion_titulo = ParagraphStyle(
         "seccion_titulo", parent=estilos["Normal"],
-        fontSize=14, textColor=VERDE_OSCURO, fontName="Helvetica-Bold",
+        fontSize=14, textColor=VERDE_OSCURO, fontName=F_BOLD,
         spaceBefore=14, spaceAfter=6,
     )
     cuerpo = ParagraphStyle(
         "cuerpo", parent=estilos["Normal"],
-        fontSize=10, textColor=TEXTO_OSCURO, fontName="Helvetica",
+        fontSize=10, textColor=TEXTO_OSCURO, fontName=F_NORMAL,
         leading=14, spaceAfter=4,
     )
     nota_tecnica = ParagraphStyle(
         "nota_tecnica", parent=estilos["Normal"],
         fontSize=8, textColor=colors.HexColor("#8B949E"),
-        fontName="Helvetica-Oblique", spaceAfter=4,
+        fontName=F_ITALIC, spaceAfter=4,
     )
     pie_pagina = ParagraphStyle(
         "pie_pagina", parent=estilos["Normal"],
         fontSize=8, textColor=colors.HexColor("#8B949E"),
-        fontName="Helvetica", alignment=TA_CENTER,
+        fontName=F_NORMAL, alignment=TA_CENTER,
     )
 
     contenido = []
 
     # ── ENCABEZADO ───────────────────────────────────────────────────────
-    encabezado_data = [[
-        Paragraph("🍽️  Restaurante La 22", titulo_principal),
-    ]]
-    encabezado_sub = [[
-        Paragraph("Reporte de Ventas y Desempeño del Negocio", subtitulo),
-        Paragraph(
-            f"Período: {fecha_ini.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}  ·  "
+    enc_data = [
+        [Paragraph("Restaurante La 22 - Reporte de Ventas", titulo_principal)],
+        [Paragraph(
+            f"Periodo: {fecha_ini.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}   |   "
             f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')}",
             subtitulo,
-        ),
-    ]]
-
-    t_enc = Table([[Paragraph("Restaurante La 22 — Reporte de Ventas", titulo_principal)]], colWidths=[17*cm])
+        )],
+    ]
+    t_enc = Table(enc_data, colWidths=[17*cm])
     t_enc.setStyle(TableStyle([
-        ("BACKGROUND",   (0, 0), (-1, -1), VERDE_OSCURO),
-        ("ROWPADDING",   (0, 0), (-1, -1), 18),
-        ("TOPPADDING",   (0, 0), (-1, -1), 18),
-        ("BOTTOMPADDING",(0, 0), (-1, -1), 18),
-        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND",    (0, 0), (-1, -1), VERDE_OSCURO),
+        ("TOPPADDING",    (0, 0), (-1, -1), 16),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("LINEBELOW",     (0, 0), (-1, 0),  1, VERDE_CLARO),
     ]))
-
-    t_sub = Table([[
-        Paragraph(f"Período: {fecha_ini.strftime('%d/%m/%Y')} — {fecha_fin.strftime('%d/%m/%Y')}", subtitulo),
-        Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}", subtitulo),
-    ]], colWidths=[8.5*cm, 8.5*cm])
-    t_sub.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), VERDE_CLARO),
-        ("ROWPADDING", (0, 0), (-1, -1), 8),
-    ]))
-
     contenido.append(t_enc)
-    contenido.append(Spacer(1, 0.3*cm))
-    contenido.append(t_sub)
     contenido.append(Spacer(1, 0.5*cm))
 
     # ── SECCIÓN 1: RESUMEN EJECUTIVO ─────────────────────────────────────
@@ -148,20 +182,20 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     cat_top       = df.groupby("categoria_plato")["cantidad_vendida"].sum().idxmax()
 
     kpi_data = [
-        ["✔  Total de platos servidos", f"{total_uds:,} unidades"],
-        ["✔  Ingresos generados en el período", f"${total_ingreso:,} COP"],
-        ["✔  Días con ventas registradas", f"{dias_datos} días"],
-        ["✔  Promedio de platos por día", f"{promedio_dia:.0f} unidades/día"],
-        ["✔  Plato más vendido", plato_top],
-        ["✔  Plato menos vendido", plato_menor],
-        ["✔  Categoría más popular", cat_top],
+        [f"{SYM_CHECK}  Total de platos servidos",        f"{total_uds:,} unidades"],
+        [f"{SYM_CHECK}  Ingresos generados en el periodo", f"${total_ingreso:,} COP"],
+        [f"{SYM_CHECK}  Dias con ventas registradas",      f"{dias_datos} dias"],
+        [f"{SYM_CHECK}  Promedio de platos por dia",       f"{promedio_dia:.0f} unidades/dia"],
+        [f"{SYM_CHECK}  Plato mas vendido",                plato_top],
+        [f"{SYM_CHECK}  Plato menos vendido",              plato_menor],
+        [f"{SYM_CHECK}  Categoria mas popular",            cat_top],
     ]
 
     t_kpi = Table(kpi_data, colWidths=[9*cm, 8*cm])
     t_kpi.setStyle(TableStyle([
-        ("FONTNAME",    (0, 0), (-1, -1), "Helvetica"),
+        ("FONTNAME",    (0, 0), (-1, -1), F_NORMAL),
         ("FONTSIZE",    (0, 0), (-1, -1), 10),
-        ("FONTNAME",    (1, 0), (1, -1), "Helvetica-Bold"),
+        ("FONTNAME",    (1, 0), (1, -1), F_BOLD),
         ("TEXTCOLOR",   (0, 0), (0, -1), TEXTO_OSCURO),
         ("TEXTCOLOR",   (1, 0), (1, -1), VERDE_OSCURO),
         ("BACKGROUND",  (0, 0), (-1, 0), FONDO_GRIS),
@@ -200,7 +234,8 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     t_plato.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, 0), VERDE_OSCURO),
         ("TEXTCOLOR",   (0, 0), (-1, 0), BLANCO),
-        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME",    (0, 0), (-1, 0), F_BOLD),
+        ("FONTNAME",    (0, 1), (-1, -1), F_NORMAL),
         ("FONTSIZE",    (0, 0), (-1, -1), 9),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [BLANCO, FONDO_GRIS]),
         ("GRID",        (0, 0), (-1, -1), 0.5, GRIS_LINEA),
@@ -213,7 +248,7 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
 
     # ── SECCIÓN 3: POR CATEGORÍA ─────────────────────────────────────────
     contenido.append(KeepTogether([
-        Paragraph("3. Ventas por Categoría", seccion_titulo),
+        Paragraph("3. Ventas por Categoria", seccion_titulo),
         HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
     ]))
 
@@ -222,14 +257,12 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ingreso_total=("ingreso", "sum"),
     ).reset_index().sort_values("total_uds", ascending=False)
 
-    emojis_cat = {"Sopas": "🍲", "Carnes": "🥩", "Pescados": "🐟", "Arroces": "🍚", "Corrientes": "🍱"}
-
-    cat_tabla = [["Categoría", "Platos vendidos", "Ingresos (COP)", "% del Total"]]
+    cat_tabla = [["Categoria", "Platos vendidos", "Ingresos (COP)", "% del Total"]]
     for _, row in df_cat.iterrows():
-        emoji = emojis_cat.get(row["categoria_plato"], "🍽️")
+        icono = CAT_ICONS.get(row["categoria_plato"], "\u25CF ")
         pct   = row["total_uds"] / total_uds * 100
         cat_tabla.append([
-            f"{emoji}  {row['categoria_plato']}",
+            f"{icono}{row['categoria_plato']}",
             f"{int(row['total_uds']):,}",
             f"${int(row['ingreso_total']):,}",
             f"{pct:.1f}%",
@@ -239,7 +272,8 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     t_cat.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, 0), VERDE_OSCURO),
         ("TEXTCOLOR",   (0, 0), (-1, 0), BLANCO),
-        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME",    (0, 0), (-1, 0), F_BOLD),
+        ("FONTNAME",    (0, 1), (-1, -1), F_NORMAL),
         ("FONTSIZE",    (0, 0), (-1, -1), 10),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [BLANCO, FONDO_GRIS]),
         ("GRID",        (0, 0), (-1, -1), 0.5, GRIS_LINEA),
@@ -291,7 +325,8 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     t_dia.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, 0), VERDE_OSCURO),
         ("TEXTCOLOR",   (0, 0), (-1, 0), BLANCO),
-        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME",    (0, 0), (-1, 0), F_BOLD),
+        ("FONTNAME",    (0, 1), (-1, -1), F_NORMAL),
         ("FONTSIZE",    (0, 0), (-1, -1), 10),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [BLANCO, FONDO_GRIS]),
         ("GRID",        (0, 0), (-1, -1), 0.5, GRIS_LINEA),
@@ -389,11 +424,11 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         )
 
         estado_data = [
-            ["✔  Precisión del sistema", f"{acierto_m:.0f}% de acierto en promedio"],
-            ["✔  Error promedio por predicción", f"{modelo_info['mae']:.1f} unidades"],
-            ["✔  Versión del modelo", modelo_info.get("version", "N/A")],
-            ["✔  Último entrenamiento", str(modelo_info.get("entrenado_en", "N/A"))[:16]],
-            ["✔  Registros de entrenamiento", f"{modelo_info.get('n_registros', 0):,}"],
+            [f"{SYM_CHECK}  Precision del sistema", f"{acierto_m:.0f}% de acierto en promedio"],
+            [f"{SYM_CHECK}  Error promedio por prediccion", f"{modelo_info['mae']:.1f} unidades"],
+            [f"{SYM_CHECK}  Version del modelo", modelo_info.get("version", "N/A")],
+            [f"{SYM_CHECK}  Ultimo entrenamiento", str(modelo_info.get("entrenado_en", "N/A"))[:16]],
+            [f"{SYM_CHECK}  Registros de entrenamiento", f"{modelo_info.get('n_registros', 0):,}"],
         ]
         contenido.append(Spacer(1, 0.2*cm))
 
