@@ -111,11 +111,13 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ),
     ]]
 
-    t_enc = Table([[Paragraph("🍽️  Restaurante La 22 — Reporte de Ventas", titulo_principal)]], colWidths=[17*cm])
+    t_enc = Table([[Paragraph("Restaurante La 22 — Reporte de Ventas", titulo_principal)]], colWidths=[17*cm])
     t_enc.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), VERDE_OSCURO),
-        ("ROWPADDING", (0, 0), (-1, -1), 14),
-        ("ROUNDEDCORNERS", [6]),
+        ("BACKGROUND",   (0, 0), (-1, -1), VERDE_OSCURO),
+        ("ROWPADDING",   (0, 0), (-1, -1), 18),
+        ("TOPPADDING",   (0, 0), (-1, -1), 18),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 18),
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
     ]))
 
     t_sub = Table([[
@@ -146,13 +148,13 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
     cat_top       = df.groupby("categoria_plato")["cantidad_vendida"].sum().idxmax()
 
     kpi_data = [
-        ["📦  Total de platos servidos", f"{total_uds:,} unidades"],
-        ["💰  Ingresos generados en el período", f"${total_ingreso:,} COP"],
-        ["📅  Días con ventas registradas", f"{dias_datos} días"],
-        ["📊  Promedio de platos por día", f"{promedio_dia:.0f} unidades/día"],
-        ["🏆  Plato más vendido", plato_top],
-        ["📉  Plato menos vendido", plato_menor],
-        ["🍽️   Categoría más popular", cat_top],
+        ["✔  Total de platos servidos", f"{total_uds:,} unidades"],
+        ["✔  Ingresos generados en el período", f"${total_ingreso:,} COP"],
+        ["✔  Días con ventas registradas", f"{dias_datos} días"],
+        ["✔  Promedio de platos por día", f"{promedio_dia:.0f} unidades/día"],
+        ["✔  Plato más vendido", plato_top],
+        ["✔  Plato menos vendido", plato_menor],
+        ["✔  Categoría más popular", cat_top],
     ]
 
     t_kpi = Table(kpi_data, colWidths=[9*cm, 8*cm])
@@ -168,12 +170,14 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ("ROWPADDING",  (0, 0), (-1, -1), 8),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    contenido.append(t_kpi)
+    contenido.append(KeepTogether([t_kpi]))
     contenido.append(Spacer(1, 0.5*cm))
 
     # ── SECCIÓN 2: DETALLE POR PLATO ─────────────────────────────────────
-    contenido.append(Paragraph("2. Detalle de Ventas por Plato", seccion_titulo))
-    contenido.append(HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8))
+    contenido.append(KeepTogether([
+        Paragraph("2. Detalle de Ventas por Plato", seccion_titulo),
+        HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
+    ]))
 
     df_plato = df.groupby(["nombre_plato", "categoria_plato"]).agg(
         total_uds=("cantidad_vendida", "sum"),
@@ -204,12 +208,14 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ("ALIGN",       (2, 0), (-1, -1), "CENTER"),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    contenido.append(t_plato)
+    contenido.append(KeepTogether([t_plato]))
     contenido.append(Spacer(1, 0.5*cm))
 
     # ── SECCIÓN 3: POR CATEGORÍA ─────────────────────────────────────────
-    contenido.append(Paragraph("3. Ventas por Categoría", seccion_titulo))
-    contenido.append(HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8))
+    contenido.append(KeepTogether([
+        Paragraph("3. Ventas por Categoría", seccion_titulo),
+        HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
+    ]))
 
     df_cat = df.groupby("categoria_plato").agg(
         total_uds=("cantidad_vendida", "sum"),
@@ -241,12 +247,14 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ("ALIGN",       (1, 0), (-1, -1), "CENTER"),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    contenido.append(t_cat)
+    contenido.append(KeepTogether([t_cat]))
     contenido.append(Spacer(1, 0.5*cm))
 
     # ── SECCIÓN 4: COMPORTAMIENTO POR DÍA ───────────────────────────────
-    contenido.append(Paragraph("4. ¿Qué días se vende más?", seccion_titulo))
-    contenido.append(HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8))
+    contenido.append(KeepTogether([
+        Paragraph("4. ¿Qué días se vende más?", seccion_titulo),
+        HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
+    ]))
 
     tipo_labels = {
         "entre_semana": "Lunes a Viernes",
@@ -291,7 +299,7 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         ("ALIGN",       (1, 0), (-1, -1), "CENTER"),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    contenido.append(t_dia)
+    contenido.append(KeepTogether([t_dia]))
     contenido.append(
         Paragraph(
             "Los domingos el restaurante suele vender aproximadamente 3 veces más que un día entre semana. "
@@ -303,8 +311,10 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
 
     # ── SECCIÓN 5: QUÉ TAN PRECISAS SON LAS PREDICCIONES ────────────────
     if comp_data is not None and len(comp_data) > 0:
-        contenido.append(Paragraph("5. ¿Qué tan bien predijo el sistema?", seccion_titulo))
-        contenido.append(HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8))
+        contenido.append(KeepTogether([
+            Paragraph("5. ¿Qué tan bien predijo el sistema?", seccion_titulo),
+            HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
+        ]))
 
         mape_periodo = comp_data["error_pct"].mean()
         acierto      = max(0, 100 - mape_periodo)
@@ -355,13 +365,15 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
             ("ALIGN",       (1, 0), (-1, -1), "CENTER"),
             ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        contenido.append(t_comp)
+        contenido.append(KeepTogether([t_comp]))
         contenido.append(Spacer(1, 0.5*cm))
 
     # ── SECCIÓN 6: ESTADO DEL MODELO (solo si hay info) ──────────────────
     if modelo_info:
-        contenido.append(Paragraph("6. Estado del Sistema de Predicción", seccion_titulo))
-        contenido.append(HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8))
+        contenido.append(KeepTogether([
+            Paragraph("6. Estado del Sistema de Predicción", seccion_titulo),
+            HRFlowable(width="100%", thickness=1, color=VERDE_CLARO, spaceAfter=8),
+        ]))
 
         mape_m  = modelo_info["mape"]
         r2_m    = modelo_info["r2"]
@@ -377,11 +389,11 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
         )
 
         estado_data = [
-            ["Precisión del sistema", f"{acierto_m:.0f}% de acierto en promedio"],
-            ["Error promedio por predicción", f"{modelo_info['mae']:.1f} unidades"],
-            ["Versión del modelo", modelo_info.get("version", "N/A")],
-            ["Último entrenamiento", str(modelo_info.get("entrenado_en", "N/A"))[:16]],
-            ["Registros de entrenamiento", f"{modelo_info.get('n_registros', 0):,}"],
+            ["✔  Precisión del sistema", f"{acierto_m:.0f}% de acierto en promedio"],
+            ["✔  Error promedio por predicción", f"{modelo_info['mae']:.1f} unidades"],
+            ["✔  Versión del modelo", modelo_info.get("version", "N/A")],
+            ["✔  Último entrenamiento", str(modelo_info.get("entrenado_en", "N/A"))[:16]],
+            ["✔  Registros de entrenamiento", f"{modelo_info.get('n_registros', 0):,}"],
         ]
         contenido.append(Spacer(1, 0.2*cm))
 
@@ -401,7 +413,7 @@ def generar_pdf(df, fecha_ini, fecha_fin, modelo_info=None, comp_data=None):
             ("ROWPADDING",  (0, 0), (-1, -1), 7),
             ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        contenido.append(t_estado)
+        contenido.append(KeepTogether([t_estado]))
         contenido.append(Paragraph(nota_str, nota_tecnica))
         contenido.append(Spacer(1, 0.5*cm))
 
@@ -498,15 +510,15 @@ with tab1:
 
         with col_pdf:
             # Intentar obtener comparación si existe
-            pred_df_t1 = obtener_predicciones(fecha_inicio=fecha_ini, fecha_fin=fecha_fin_rep)
+            pred_df_t1   = obtener_predicciones(fecha_inicio=fecha_ini, fecha_fin=fecha_fin_rep)
             ventas_df_t1 = df.copy()
             comp_data_pdf = None
 
             if len(pred_df_t1) > 0:
                 ventas_agg_t1 = ventas_df_t1.groupby(["fecha_venta", "nombre_plato"])["cantidad_vendida"].sum().reset_index()
                 ventas_agg_t1.rename(columns={"fecha_venta": "fecha_prediccion", "cantidad_vendida": "venta_real"}, inplace=True)
-                # Convertir ambas columnas al mismo tipo (str) antes del merge
-                pred_df_t1["fecha_prediccion"] = pd.to_datetime(pred_df_t1["fecha_prediccion"]).dt.date.astype(str)
+                # Convertir ambas columnas al mismo tipo antes del merge
+                pred_df_t1["fecha_prediccion"]    = pd.to_datetime(pred_df_t1["fecha_prediccion"]).dt.date.astype(str)
                 ventas_agg_t1["fecha_prediccion"] = pd.to_datetime(ventas_agg_t1["fecha_prediccion"]).dt.date.astype(str)
                 merged = pred_df_t1.merge(ventas_agg_t1, on=["fecha_prediccion", "nombre_plato"], how="inner")
                 if len(merged) > 0:
@@ -516,24 +528,23 @@ with tab1:
 
             modelo_info_pdf = obtener_modelo_activo()
 
-            if st.button("📄 Generar PDF", type="primary", use_container_width=True):
-                with st.spinner("Generando PDF..."):
-                    try:
-                        pdf_bytes = generar_pdf(
-                            df.copy(), fecha_ini, fecha_fin_rep,
-                            modelo_info=modelo_info_pdf,
-                            comp_data=comp_data_pdf,
-                        )
-                        st.download_button(
-                            label="⬇️ Descargar PDF",
-                            data=pdf_bytes,
-                            file_name=f"reporte_la22_{fecha_ini}_{fecha_fin_rep}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                        )
-                        st.toast("✅ PDF generado correctamente", icon="📄")
-                    except Exception as e:
-                        st.error(f"Error al generar el PDF: {str(e)}")
+            # Generar PDF directamente al hacer clic
+            try:
+                pdf_bytes = generar_pdf(
+                    df.copy(), fecha_ini, fecha_fin_rep,
+                    modelo_info=modelo_info_pdf,
+                    comp_data=comp_data_pdf,
+                )
+                st.download_button(
+                    label="📄 Descargar Reporte PDF",
+                    data=pdf_bytes,
+                    file_name=f"reporte_la22_{fecha_ini}_{fecha_fin_rep}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary",
+                )
+            except Exception as e:
+                st.error(f"Error al generar el PDF: {str(e)}")
     else:
         st.info("No hay datos de ventas para el período seleccionado.")
 

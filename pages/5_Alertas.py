@@ -15,7 +15,6 @@ from utils.database import (
 from utils.database import obtener_ventas_df_completo
 from utils.ml_model import predecir_dia, modelo_existe
 
-
 from utils.auth import verificar_sesion, sidebar_usuario, get_usuario_actual, ROLES
 
 st.set_page_config(page_title="Alertas — La 22", page_icon="⚠️", menu_items={}, layout="wide")
@@ -25,7 +24,11 @@ st.markdown(DARK_THEME_CSS, unsafe_allow_html=True)
 
 verificar_sesion()
 
-# (CSS handled by theme.py)
+
+def cop(valor):
+    """Formatea un número como pesos colombianos."""
+    return f"${int(valor):,} COP".replace(",", ".")
+
 
 st.markdown("""
 <div class="page-header">
@@ -41,20 +44,25 @@ with tab1:
     if modelo_existe():
         if st.button("🔄 Analizar y generar alertas", type="primary"):
             with st.spinner("Analizando datos..."):
-                # Comparar predicción vs real de los últimos 7 días
-                hoy = date.today()
+                hoy    = date.today()
                 hace_7 = hoy - timedelta(days=7)
-                pred = obtener_predicciones(fecha_inicio=hace_7, fecha_fin=hoy)
+                pred   = obtener_predicciones(fecha_inicio=hace_7, fecha_fin=hoy)
                 ventas = obtener_ventas_historicas(fecha_inicio=hace_7, fecha_fin=hoy)
 
                 if len(pred) > 0 and len(ventas) > 0:
+                    # Normalizar tipos antes del merge
+                    pred["fecha_prediccion"] = pd.to_datetime(pred["fecha_prediccion"]).dt.date.astype(str)
+
                     ventas_agg = ventas.groupby(["fecha_venta", "nombre_plato"])["cantidad_vendida"].sum().reset_index()
                     ventas_agg.rename(columns={"fecha_venta": "fecha_prediccion"}, inplace=True)
+                    ventas_agg["fecha_prediccion"] = pd.to_datetime(ventas_agg["fecha_prediccion"]).dt.date.astype(str)
 
                     comp = pred.merge(ventas_agg, on=["fecha_prediccion", "nombre_plato"], how="inner")
+
+                    alertas_generadas = 0
                     for _, row in comp.iterrows():
                         diff = row["cantidad_vendida"] - row["cantidad_predicha"]
-                        if diff < -10:  # Sobreproducción significativa
+                        if diff < -10:
                             crear_alerta(
                                 "desperdicio",
                                 f"⚠️ Posible desperdicio en {row['nombre_plato']} "
@@ -62,7 +70,8 @@ with tab1:
                                 f"pero se vendieron {int(row['cantidad_vendida'])} ({int(diff)} uds sobrantes).",
                                 "warning",
                             )
-                        elif diff > 15:  # Alta demanda inesperada
+                            alertas_generadas += 1
+                        elif diff > 15:
                             crear_alerta(
                                 "demanda_alta",
                                 f"📈 Demanda superior a lo esperado en {row['nombre_plato']} "
@@ -70,8 +79,9 @@ with tab1:
                                 f"vendido {int(row['cantidad_vendida'])} (+{int(diff)} uds).",
                                 "info",
                             )
+                            alertas_generadas += 1
 
-                st.success("Análisis completado. Revisa las alertas generadas.")
+                st.success(f"Análisis completado. {alertas_generadas} alertas generadas.")
                 st.rerun()
 
     st.divider()
@@ -91,8 +101,11 @@ with tab1:
 
         for alerta in alertas:
             badge_class = f"badge-{alerta['nivel']}"
-            card_class = "unread" if not alerta["leida"] else "read"
-            tipo_label = alerta["tipo"].replace("_", " ").title()
+            card_class  = "unread" if not alerta["leida"] else "read"
+            tipo_label  = alerta["tipo"].replace("_", " ").title()
+
+            # Reemplazar $ por COP en el mensaje si aplica
+            mensaje = alerta["mensaje"]
 
             col_a, col_btn = st.columns([5, 1])
             with col_a:
@@ -100,9 +113,9 @@ with tab1:
                 <div class="alert-card {card_class}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span class="alert-badge {badge_class}">{tipo_label}</span>
-                        <span style="color: #999; font-size: 0.8rem;">{alerta['creada_en']}</span>
+                        <span style="color: #8b949e; font-size: 0.8rem;">{alerta['creada_en']}</span>
                     </div>
-                    <p style="margin: 0.5rem 0 0; color: #c9d1d9;">{alerta['mensaje']}</p>
+                    <p style="margin: 0.5rem 0 0; color: #c9d1d9;">{mensaje}</p>
                 </div>
                 """, unsafe_allow_html=True)
             with col_btn:
@@ -120,28 +133,30 @@ with tab2:
         "días y platos donde hubo sobreproducción (posible desperdicio de alimentos)."
     )
 
-    pred_all = obtener_predicciones()
+    pred_all   = obtener_predicciones()
     ventas_all = obtener_ventas_historicas()
 
     if len(pred_all) > 0 and len(ventas_all) > 0:
-        ventas_agg = ventas_all.groupby(["fecha_venta", "nombre_plato"])["cantidad_vendida"].sum().reset_index()
-        ventas_agg.rename(columns={"fecha_venta": "fecha_prediccion"}, inplace=True)
+        # Normalizar tipos antes del merge
+        pred_all["fecha_prediccion"] = pd.to_datetime(pred_all["fecha_prediccion"]).dt.date.astype(str)
 
-        comp = pred_all.merge(ventas_agg, on=["fecha_prediccion", "nombre_plato"], how="inner")
-        comp["excedente"] = comp["cantidad_predicha"] - comp["cantidad_vendida"]
-        comp["desperdicio_potencial"] = comp["excedente"].clip(lower=0)
+        ventas_agg2 = ventas_all.groupby(["fecha_venta", "nombre_plato"])["cantidad_vendida"].sum().reset_index()
+        ventas_agg2.rename(columns={"fecha_venta": "fecha_prediccion"}, inplace=True)
+        ventas_agg2["fecha_prediccion"] = pd.to_datetime(ventas_agg2["fecha_prediccion"]).dt.date.astype(str)
 
-        if comp["desperdicio_potencial"].sum() > 0:
-            # Platos con más excedente
-            desp_plato = comp.groupby("nombre_plato")["desperdicio_potencial"].sum().nlargest(10).reset_index()
+        comp2 = pred_all.merge(ventas_agg2, on=["fecha_prediccion", "nombre_plato"], how="inner")
+        comp2["excedente"]             = comp2["cantidad_predicha"] - comp2["cantidad_vendida"]
+        comp2["desperdicio_potencial"] = comp2["excedente"].clip(lower=0)
+
+        if comp2["desperdicio_potencial"].sum() > 0:
+            desp_plato = comp2.groupby("nombre_plato")["desperdicio_potencial"].sum().nlargest(10).reset_index()
             desp_plato.columns = ["Plato", "Unidades Excedentes"]
 
             st.markdown("#### Platos con Mayor Excedente Acumulado")
             st.bar_chart(desp_plato.set_index("Plato"))
-
             st.dataframe(desp_plato, use_container_width=True, hide_index=True)
 
-            total_desp = int(comp["desperdicio_potencial"].sum())
+            total_desp = int(comp2["desperdicio_potencial"].sum())
             st.metric("Total Unidades Excedentes (período)", f"{total_desp:,}")
             st.caption(
                 "El excedente no necesariamente es desperdicio — algunos platos pueden conservarse. "
@@ -152,5 +167,5 @@ with tab2:
     else:
         st.info(
             "Para generar este análisis necesitas tener predicciones guardadas y ventas reales "
-            "registradas para los mismos días. Genera predicciones y luego registra las ventas."
+            "registradas para los mismos días."
         )
